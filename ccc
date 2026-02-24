@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="0.1.0"
+
+usage() {
+  cat <<'EOF'
+ccc - quick questions for Claude from your terminal
+
+Usage:
+  ccc [options] <prompt>
+  command | ccc [options] <prompt>
+
+Options:
+  -c            Continue the most recent conversation
+  -m <model>    Model to use (default: opus)
+  -d <dir>      Add directory context for file access
+  -y            Copy raw output to clipboard
+  -h, --help    Show this help message
+  -v, --version Show version
+
+Examples:
+  ccc what is rust
+  ccc -m haiku explain monads quickly
+  ccc -d ./src explain the architecture
+  git diff | ccc review this diff
+  ccc -y write a bash one-liner to find large files
+  ccc -c can you elaborate on that last point
+EOF
+}
+
+# Check dependencies
+for cmd in claude glow; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "ccc: '$cmd' is not installed." >&2
+    case "$cmd" in
+      claude) echo "  Install Claude Code: https://claude.com/product/claude-code" >&2 ;;
+      glow)   echo "  Install glow: brew install glow" >&2 ;;
+    esac
+    exit 1
+  fi
+done
+
+# Defaults
+model="opus"
+continue_flag=()
+add_dirs=()
+copy=0
+stdin_data=""
+
+# Read stdin if piped
+if [[ ! -t 0 ]]; then
+  stdin_data=$(cat)
+fi
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -c) continue_flag=(--continue); shift ;;
+    -m) model="$2"; shift 2 ;;
+    -d) add_dirs+=(--add-dir "$2"); shift 2 ;;
+    -y) copy=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -v|--version) echo "ccc $VERSION"; exit 0 ;;
+    *)  break ;;
+  esac
+done
+
+if [[ $# -eq 0 && -z "$stdin_data" ]]; then
+  usage >&2
+  exit 1
+fi
+
+# Build prompt: prepend stdin if available
+prompt="$*"
+if [[ -n "$stdin_data" ]]; then
+  prompt="${stdin_data}"$'\n\n'"${prompt}"
+fi
+
+output=$(claude --print --output-format=text --model "$model" \
+  ${continue_flag[@]+"${continue_flag[@]}"} \
+  ${add_dirs[@]+"${add_dirs[@]}"} \
+  --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
+  -- "$prompt")
+
+if [[ "$copy" -eq 1 ]]; then
+  echo "$output" | pbcopy
+fi
+
+echo "$output" | PAGER='less -rFX' glow -p
