@@ -6,6 +6,8 @@ Quick questions for Claude, right from your terminal.
 ccc what does the -z flag do in tar
 ```
 
+![Example](img/example.png)
+
 ## Install
 
 ### Homebrew
