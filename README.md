@@ -3,7 +3,7 @@
 Quick questions for Claude, right from your terminal.
 
 ```bash
-ccc what does the -z flag do in tar
+ccc "what does the -z flag do in tar"
 ```
 
 ![Example](img/example.png)
@@ -31,8 +31,9 @@ ln -s "$(pwd)/ccc/ccc" /usr/local/bin/ccc
 ## Usage
 
 ```bash
-# Ask anything (no quotes needed)
+# Ask anything (quotes are optional)
 ccc what is the best way to handle errors in Go
+ccc "what does the -z flag do in tar"
 
 # Pipe in code, diffs, logs
 git diff | ccc review this

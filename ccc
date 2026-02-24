@@ -20,12 +20,12 @@ Options:
   -v, --version Show version
 
 Examples:
-  ccc what is rust
-  ccc -m haiku explain monads quickly
-  ccc -d ./src explain the architecture
-  git diff | ccc review this diff
-  ccc -y write a bash one-liner to find large files
-  ccc -c can you elaborate on that last point
+  ccc "what is rust"
+  ccc -m haiku "explain monads quickly"
+  ccc -d ./src "explain the architecture"
+  git diff | ccc "review this diff"
+  ccc -y "write a bash one-liner to find large files"
+  ccc -c "can you elaborate on that last point"
 EOF
 }
 
