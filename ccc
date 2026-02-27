@@ -100,7 +100,7 @@ run_query() {
   fi
 
   if [[ "$has_glow" -eq 1 ]]; then
-    echo "$output" | PAGER='less -rFX' glow -p
+    echo "$output" | PAGER='less -rFX' glow -w 0 -p
   else
     echo "$output"
   fi

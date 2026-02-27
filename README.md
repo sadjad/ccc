@@ -25,8 +25,9 @@ ln -s "$(pwd)/ccc/ccc" /usr/local/bin/ccc
 
 ### Dependencies
 
-- [Claude Code](https://claude.ai/claude-code) (`claude`)
-- [glow](https://github.com/charmbracelet/glow) (`brew install glow`)
+- [Claude Code](https://claude.ai/claude-code) (`claude`) — **required**
+- [gum](https://github.com/charmbracelet/gum) (`brew install gum`) — optional, spinner + styled input
+- [glow](https://github.com/charmbracelet/glow) (`brew install glow`) — optional, markdown rendering
 
 ## Usage
 
@@ -66,6 +67,7 @@ ccc --continue what about ownership
 | `-c` | `--continue` | Continue the most recent conversation |
 | `-m` | `--model <model>` | Model to use (default: opus) |
 | `-d` | `--dir <dir>` | Add directory context for file access |
+| `-w` | `--write` | Use multi-line editor for interactive input |
 | `-y` | `--yank` | Copy raw output to clipboard |
 | `-h` | `--help` | Show help message |
 | `-v` | `--version` | Show version |
