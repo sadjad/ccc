@@ -8,24 +8,27 @@ usage() {
 ccc - quick questions for Claude from your terminal
 
 Usage:
-  ccc [options] <prompt>
-  command | ccc [options] <prompt>
+  ccc [options] [prompt]
+  command | ccc [options] [prompt]
+
+If no prompt is given, ccc starts an interactive session.
+Subsequent prompts automatically continue the conversation.
 
 Options:
-  -c            Continue the most recent conversation
-  -m <model>    Model to use (default: opus)
-  -d <dir>      Add directory context for file access
-  -y            Copy raw output to clipboard
-  -h, --help    Show this help message
-  -v, --version Show version
+  -c, --continue       Continue the most recent conversation
+  -m, --model <model>  Model to use (default: opus)
+  -d, --dir <dir>      Add directory context for file access
+  -y, --yank           Copy raw output to clipboard
+  -h, --help           Show this help message
+  -v, --version        Show version
 
 Examples:
   ccc "what is rust"
-  ccc -m haiku "explain monads quickly"
-  ccc -d ./src "explain the architecture"
+  ccc --model haiku "explain monads quickly"
+  ccc --dir ./src "explain the architecture"
   git diff | ccc "review this diff"
-  ccc -y "write a bash one-liner to find large files"
-  ccc -c "can you elaborate on that last point"
+  ccc --yank "write a bash one-liner to find large files"
+  ccc --continue "can you elaborate on that last point"
 EOF
 }
 
@@ -56,35 +59,65 @@ fi
 # Parse flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -c) continue_flag=(--continue); shift ;;
-    -m) model="$2"; shift 2 ;;
-    -d) add_dirs+=(--add-dir "$2"); shift 2 ;;
-    -y) copy=1; shift ;;
-    -h|--help) usage; exit 0 ;;
-    -v|--version) echo "ccc $VERSION"; exit 0 ;;
-    *)  break ;;
+    -c|--continue) continue_flag=(--continue); shift ;;
+    -m|--model)    model="$2"; shift 2 ;;
+    --model=*)     model="${1#*=}"; shift ;;
+    -d|--dir)      add_dirs+=(--add-dir "$2"); shift 2 ;;
+    --dir=*)       add_dirs+=(--add-dir "${1#*=}"); shift ;;
+    -y|--yank)     copy=1; shift ;;
+    -h|--help)     usage; exit 0 ;;
+    -v|--version)  echo "ccc $VERSION"; exit 0 ;;
+    --)            shift; break ;;
+    *)             break ;;
   esac
 done
 
+run_query() {
+  local prompt="$1"
+  local output
+  output=$(claude --print --output-format=text --model "$model" \
+    ${continue_flag[@]+"${continue_flag[@]}"} \
+    ${add_dirs[@]+"${add_dirs[@]}"} \
+    --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
+    -- "$prompt")
+
+  if [[ "$copy" -eq 1 ]]; then
+    echo "$output" | pbcopy
+  fi
+
+  echo "$output" | PAGER='less -rFX' glow -p
+}
+
+# Interactive mode: loop with continuation
 if [[ $# -eq 0 && -z "$stdin_data" ]]; then
-  usage >&2
-  exit 1
+  if [[ ! -t 2 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  read -r -p "ccc> " prompt </dev/tty || exit 0
+  if [[ -z "$prompt" ]]; then
+    exit 0
+  fi
+
+  run_query "$prompt"
+  continue_flag=(--continue)
+
+  while read -r -p "ccc> " prompt </dev/tty; do
+    [[ -z "$prompt" ]] && continue
+    run_query "$prompt"
+  done
+  exit 0
 fi
 
-# Build prompt: prepend stdin if available
+# Non-interactive: single query
 prompt="$*"
 if [[ -n "$stdin_data" ]]; then
-  prompt="${stdin_data}"$'\n\n'"${prompt}"
+  if [[ -n "$prompt" ]]; then
+    prompt="${stdin_data}"$'\n\n'"${prompt}"
+  else
+    prompt="$stdin_data"
+  fi
 fi
 
-output=$(claude --print --output-format=text --model "$model" \
-  ${continue_flag[@]+"${continue_flag[@]}"} \
-  ${add_dirs[@]+"${add_dirs[@]}"} \
-  --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
-  -- "$prompt")
-
-if [[ "$copy" -eq 1 ]]; then
-  echo "$output" | pbcopy
-fi
-
-echo "$output" | PAGER='less -rFX' glow -p
+run_query "$prompt"
