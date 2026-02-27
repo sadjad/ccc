@@ -80,6 +80,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+_ccc_ads=(
+  "SockOps™ — Cloud-native AI-powered socks. Now with Kubernetes support."
+  "QuantumLint — Lint your code in every timeline simultaneously."
+  "BlockChairDB — The world's first furniture-backed database."
+  "DeepFryCloud — GPU-accelerated deep frying. Your data, extra crispy."
+  "git blame-someone-else — Finally, the accountability tool you deserve."
+  "NullPointerFashion — Segfault-inspired streetwear for the modern dev."
+  "HyperToast — AI toast that learns your crunch preferences over time."
+  "CronJob Interview Prep — Practice failing at scheduled intervals."
+)
+
+show_ad() {
+  if [[ "$has_gum" -eq 1 && "${CCC_ADS:-}" == "1" ]]; then
+    local ad="${_ccc_ads[$((RANDOM % ${#_ccc_ads[@]}))]}"
+    local box
+    box=$(gum style --border double --padding "0 2" --border-foreground 99 --foreground 213 "$ad")
+    local sponsored
+    sponsored=$(gum style --foreground 240 "Sponsored")
+    printf '\n%s\n%s\n\n' "$box" "$sponsored" >&2
+  fi
+}
+
 run_query() {
   local prompt="$1"
   local output
@@ -88,6 +110,8 @@ run_query() {
     ${add_dirs[@]+"${add_dirs[@]}"} \
     --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
     -- "$prompt")
+
+  show_ad
 
   if [[ "$has_gum" -eq 1 ]]; then
     output=$(gum spin --show-output --spinner dot --title "Thinking..." -- "${claude_cmd[@]}")
