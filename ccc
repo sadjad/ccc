@@ -18,9 +18,15 @@ Options:
   -c, --continue       Continue the most recent conversation
   -m, --model <model>  Model to use (default: opus)
   -d, --dir <dir>      Add directory context for file access
+  -w, --write          Use multi-line editor for interactive input
   -y, --yank           Copy raw output to clipboard
   -h, --help           Show this help message
   -v, --version        Show version
+
+Dependencies:
+  claude               Required. https://claude.com/product/claude-code
+  gum                  Optional. Spinner and multi-line input (brew install gum)
+  glow                 Optional. Markdown rendering (brew install glow)
 
 Examples:
   ccc "what is rust"
@@ -29,26 +35,27 @@ Examples:
   git diff | ccc "review this diff"
   ccc --yank "write a bash one-liner to find large files"
   ccc --continue "can you elaborate on that last point"
+  ccc                  Start an interactive session
 EOF
 }
 
-# Check dependencies
-for cmd in claude glow; do
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "ccc: '$cmd' is not installed." >&2
-    case "$cmd" in
-      claude) echo "  Install Claude Code: https://claude.com/product/claude-code" >&2 ;;
-      glow)   echo "  Install glow: brew install glow" >&2 ;;
-    esac
-    exit 1
-  fi
-done
+# Check required dependencies
+if ! command -v claude &>/dev/null; then
+  echo "ccc: 'claude' is not installed." >&2
+  echo "  Install Claude Code: https://claude.com/product/claude-code" >&2
+  exit 1
+fi
+
+# Detect optional dependencies
+has_gum=0; command -v gum &>/dev/null && has_gum=1
+has_glow=0; command -v glow &>/dev/null && has_glow=1
 
 # Defaults
 model="opus"
 continue_flag=()
 add_dirs=()
 copy=0
+write_mode=0
 stdin_data=""
 
 # Read stdin if piped
@@ -64,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --model=*)     model="${1#*=}"; shift ;;
     -d|--dir)      add_dirs+=(--add-dir "$2"); shift 2 ;;
     --dir=*)       add_dirs+=(--add-dir "${1#*=}"); shift ;;
+    -w|--write)    write_mode=1; shift ;;
     -y|--yank)     copy=1; shift ;;
     -h|--help)     usage; exit 0 ;;
     -v|--version)  echo "ccc $VERSION"; exit 0 ;;
@@ -75,17 +83,27 @@ done
 run_query() {
   local prompt="$1"
   local output
-  output=$(claude --print --output-format=text --model "$model" \
+  local claude_cmd=(claude --print --output-format=text --model "$model" \
     ${continue_flag[@]+"${continue_flag[@]}"} \
     ${add_dirs[@]+"${add_dirs[@]}"} \
     --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
     -- "$prompt")
 
+  if [[ "$has_gum" -eq 1 ]]; then
+    output=$(gum spin --show-output --spinner dot --title "Thinking..." -- "${claude_cmd[@]}")
+  else
+    output=$("${claude_cmd[@]}")
+  fi
+
   if [[ "$copy" -eq 1 ]]; then
     echo "$output" | pbcopy
   fi
 
-  echo "$output" | PAGER='less -rFX' glow -p
+  if [[ "$has_glow" -eq 1 ]]; then
+    echo "$output" | PAGER='less -rFX' glow -p
+  else
+    echo "$output"
+  fi
 }
 
 # Interactive mode: loop with continuation
@@ -95,16 +113,30 @@ if [[ $# -eq 0 && -z "$stdin_data" ]]; then
     exit 1
   fi
 
-  read -r -p "ccc> " prompt </dev/tty || exit 0
+  get_prompt() {
+    if [[ "$has_gum" -eq 1 ]]; then
+      if [[ "$write_mode" -eq 1 ]]; then
+        gum write --header "ccc>" --header.foreground 240 --placeholder "Ask anything..." --char-limit 0 --show-help=false
+      else
+        gum input --placeholder "Ask anything..." --prompt "ccc> " --prompt.foreground 240 --char-limit 0 --show-help=false
+      fi
+    else
+      read -r -p "ccc> " prompt </dev/tty && echo "$prompt"
+    fi
+  }
+
+  prompt=$(get_prompt) || exit 0
   if [[ -z "$prompt" ]]; then
     exit 0
   fi
 
+  [[ "$has_gum" -eq 1 ]] && gum style --background 236 --padding "0 1" "ccc> $prompt"
   run_query "$prompt"
   continue_flag=(--continue)
 
-  while read -r -p "ccc> " prompt </dev/tty; do
+  while prompt=$(get_prompt); do
     [[ -z "$prompt" ]] && continue
+    [[ "$has_gum" -eq 1 ]] && gum style --background 236 --padding "0 1" "ccc> $prompt"
     run_query "$prompt"
   done
   exit 0
