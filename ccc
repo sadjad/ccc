@@ -17,7 +17,10 @@ Subsequent prompts automatically continue the conversation.
 
 Options:
   -c, --continue       Continue the most recent conversation
+  -f, --file <file>    Add file contents to the prompt (repeatable)
   -m, --model <model>  Model to use (default: opus)
+  -s, --system <text>  Override the default system prompt
+  --no-system          Use Claude Code's default system prompt instead
   -d, --dir <dir>      Add directory context for file access
   -n, --no-save        Don't save session (cannot be continued)
   -w, --write          Use multi-line editor for interactive input
@@ -37,6 +40,8 @@ Examples:
   ccc "what is rust"
   ccc --model haiku "explain monads quickly"
   ccc --dir ./src "explain the architecture"
+  ccc -f main.py "explain this"
+  ccc -f src/auth.ts -f src/db.ts "how do these interact"
   git diff | ccc "review this diff"
   ccc --yank "write a bash one-liner to find large files"
   ccc --continue "can you elaborate on that last point"
@@ -59,6 +64,8 @@ has_glow=0; command -v glow &>/dev/null && has_glow=1
 model="opus"
 continue_flag=()
 add_dirs=()
+file_data=""
+system_prompt="Be concise and direct. Give short answers. Prefer examples and code over lengthy explanations. Use markdown formatting. Skip preamble."
 copy=0
 no_save=0
 write_mode=0
@@ -75,6 +82,11 @@ while [[ $# -gt 0 ]]; do
     -c|--continue) continue_flag=(--continue); shift ;;
     -m|--model)    model="$2"; shift 2 ;;
     --model=*)     model="${1#*=}"; shift ;;
+    -f|--file)     file_data+="$(cat "$2")"$'\n\n'; shift 2 ;;
+    --file=*)      file_data+="$(cat "${1#*=}")"$'\n\n'; shift ;;
+    -s|--system)   system_prompt="$2"; shift 2 ;;
+    --system=*)    system_prompt="${1#*=}"; shift ;;
+    --no-system)   system_prompt=""; shift ;;
     -d|--dir)      add_dirs+=(--add-dir "$(cd "$2" && pwd)"); shift 2 ;;
     --dir=*)       add_dirs+=(--add-dir "$(cd "${1#*=}" && pwd)"); shift ;;
     -n|--no-save)  no_save=1; shift ;;
@@ -113,10 +125,13 @@ run_query() {
   local output
   local no_save_flag=()
   [[ "$no_save" -eq 1 ]] && no_save_flag=(--no-session-persistence)
+  local system_flag=()
+  [[ -n "$system_prompt" ]] && system_flag=(--system-prompt "$system_prompt")
   local claude_cmd=(claude --print --output-format=text --model "$model" \
     ${continue_flag[@]+"${continue_flag[@]}"} \
     ${add_dirs[@]+"${add_dirs[@]}"} \
     ${no_save_flag[@]+"${no_save_flag[@]}"} \
+    ${system_flag[@]+"${system_flag[@]}"} \
     --allowedTools 'Read,Glob,Grep,Bash(ls:*),Bash(find:*),Bash(file:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(cat:*),Bash(git:*)' \
     -- "$prompt")
 
@@ -140,7 +155,7 @@ run_query() {
 }
 
 # Interactive mode: loop with continuation
-if [[ $# -eq 0 && -z "$stdin_data" ]]; then
+if [[ $# -eq 0 && -z "$stdin_data" && -z "$file_data" ]]; then
   if [[ ! -t 2 ]]; then
     usage >&2
     exit 1
@@ -177,11 +192,14 @@ fi
 
 # Non-interactive: single query
 prompt="$*"
-if [[ -n "$stdin_data" ]]; then
+context=""
+[[ -n "$stdin_data" ]] && context+="$stdin_data"$'\n\n'
+[[ -n "$file_data" ]] && context+="$file_data"
+if [[ -n "$context" ]]; then
   if [[ -n "$prompt" ]]; then
-    prompt="${stdin_data}"$'\n\n'"${prompt}"
+    prompt="${context}${prompt}"
   else
-    prompt="$stdin_data"
+    prompt="$context"
   fi
 fi
 

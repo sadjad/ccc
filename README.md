@@ -42,6 +42,10 @@ ccc
 # ccc> what is rust?
 # ccc> tell me more about ownership
 
+# Pass files as context
+ccc -f main.py "explain this"
+ccc -f src/auth.ts -f src/db.ts "how do these interact"
+
 # Pipe in code, diffs, logs
 git diff | ccc review this
 cat main.py | ccc explain this
@@ -65,8 +69,12 @@ ccc --continue what about ownership
 | Short | Long | Description |
 |-------|------|-------------|
 | `-c` | `--continue` | Continue the most recent conversation |
+| `-f` | `--file <file>` | Add file contents to the prompt (repeatable) |
 | `-m` | `--model <model>` | Model to use (default: opus) |
+| `-s` | `--system <text>` | Override the default system prompt |
+|       | `--no-system` | Use Claude Code's default system prompt instead |
 | `-d` | `--dir <dir>` | Add directory context for file access |
+| `-n` | `--no-save` | Don't save session (cannot be continued) |
 | `-w` | `--write` | Use multi-line editor for interactive input |
 | `-y` | `--yank` | Copy raw output to clipboard |
 | `-h` | `--help` | Show help message |
