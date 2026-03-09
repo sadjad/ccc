@@ -33,8 +33,9 @@ Dependencies:
   gum                  Optional. Spinner and multi-line input (brew install gum)
   glow                 Optional. Markdown rendering (brew install glow)
 
-Sessions are stored in $session_dir so they don't
-appear in your regular \`claude --resume\` list.
+Sessions are isolated from regular Claude Code by setting
+CLAUDE_CONFIG_DIR to $session_dir, so they don't appear
+in your \`claude --resume\` list.
 
 Examples:
   ccc "what is rust"
@@ -87,8 +88,8 @@ while [[ $# -gt 0 ]]; do
     -s|--system)   system_prompt="$2"; shift 2 ;;
     --system=*)    system_prompt="${1#*=}"; shift ;;
     --no-system)   system_prompt=""; shift ;;
-    -d|--dir)      add_dirs+=(--add-dir "$(cd "$2" && pwd)"); shift 2 ;;
-    --dir=*)       add_dirs+=(--add-dir "$(cd "${1#*=}" && pwd)"); shift ;;
+    -d|--dir)      add_dirs+=(--add-dir "$2"); shift 2 ;;
+    --dir=*)       add_dirs+=(--add-dir "${1#*=}"); shift ;;
     -n|--no-save)  no_save=1; shift ;;
     -w|--write)    write_mode=1; shift ;;
     -y|--yank)     copy=1; shift ;;
@@ -102,8 +103,7 @@ done
 # Isolate ccc sessions from regular `claude --resume` lists
 _ccc_data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/ccc"
 mkdir -p "$_ccc_data_dir"
-add_dirs+=(--add-dir "$PWD")
-cd "$_ccc_data_dir"
+export CLAUDE_CONFIG_DIR="$_ccc_data_dir"
 
 _ccc_ads=(
   "git blame-someone-else — Finally, the accountability tool you deserve."

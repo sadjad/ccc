@@ -84,10 +84,9 @@ Long options that take a value also accept `=` syntax (e.g., `--model=haiku`).
 
 ### Session isolation
 
-ccc stores its sessions in `${XDG_DATA_HOME:-~/.local/share}/ccc` so they
-don't appear in `claude --resume` alongside your regular Claude Code sessions.
-Your current working directory is automatically passed to Claude via `--add-dir`
-so file access still works as expected.
+ccc sets `CLAUDE_CONFIG_DIR` to `${XDG_DATA_HOME:-~/.local/share}/ccc` so its
+sessions are fully isolated from your regular Claude Code sessions and don't
+appear in `claude --resume`.
 
 ## License
 
