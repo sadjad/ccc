@@ -1,8 +1,5 @@
 # TODO
 
-- **Config file** — `${XDG_CONFIG_HOME:-~/.config}/ccc/config` for persistent
-  defaults (model, system prompt, etc.) so users don't need flags every time.
-
 - **Streaming output** — Stream responses directly to the terminal instead of
   waiting for the full response behind a spinner. Main blocker: `claude --print`
   only streams in JSON format, and glow can't render markdown incrementally.

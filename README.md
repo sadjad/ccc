@@ -82,11 +82,42 @@ ccc --continue what about ownership
 
 Long options that take a value also accept `=` syntax (e.g., `--model=haiku`).
 
+### Config file
+
+ccc reads persistent defaults from `${XDG_CONFIG_HOME:-~/.config}/ccc/config`.
+Simple `key=value` format; lines starting with `#` are comments. Command-line
+flags override config values.
+
+Example:
+
+```ini
+# Default model
+model=haiku
+
+# Custom system prompt
+system=Be brief.
+
+# Disable session isolation (use default ~/.claude)
+# isolation=off
+```
+
+Supported keys:
+
+| Key | Description |
+|-----|-------------|
+| `model` | Default model (e.g. `haiku`, `sonnet`, `opus`) |
+| `system` | Default system prompt |
+| `isolation` | `on` (default) or `off` — disable session isolation |
+
 ### Session isolation
 
 ccc sets `CLAUDE_CONFIG_DIR` to `${XDG_DATA_HOME:-~/.local/share}/ccc` so its
 sessions are fully isolated from your regular Claude Code sessions and don't
 appear in `claude --resume`.
+
+On first run, ccc will prompt you to authenticate for the isolated config
+directory. You can disable isolation entirely by setting `isolation=off` in your
+[config file](#config-file).
 
 ## License
 
